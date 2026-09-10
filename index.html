@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bacchus · Session Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="app">
+      <header class="header">
+        <p class="brand">Bacchus</p>
+        <h1>Session Report</h1>
+        <p class="lede">
+          Enter one or more session IDs to pull sensor readings from Firestore
+          and export a PDF.
+        </p>
+      </header>
+
+      <main class="panel">
+        <label class="field" for="session-ids">
+          <span class="field-label">Session ID(s)</span>
+          <span class="field-hint"
+            >One ID per line, or comma-separated. Example:
+            session_1709651751283_lgh8gvz4t3f</span
+          >
+          <textarea
+            id="session-ids"
+            rows="4"
+            spellcheck="false"
+            placeholder="session_…"
+            autocomplete="off"
+          ></textarea>
+        </label>
+
+        <div class="actions">
+          <button type="button" id="btn-fetch" class="btn btn-primary">
+            Fetch readings
+          </button>
+          <button
+            type="button"
+            id="btn-pdf"
+            class="btn btn-secondary"
+            disabled
+          >
+            Download ZIP / PDF
+          </button>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+
+        <section id="preview" class="preview" hidden>
+          <div class="preview-meta">
+            <h2>Results</h2>
+            <p id="preview-summary" class="preview-summary"></p>
+          </div>
+          <div class="table-wrap">
+            <table id="results-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Session</th>
+                  <th>Sensor</th>
+                  <th>Temp °C</th>
+                  <th>Battery</th>
+                  <th>Time (EST)</th>
+                  <th>Drinking</th>
+                  <th>Smoking</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Queries <code>sensorReadings</code> where
+          <code>sessionId</code> matches, via a local API using your
+          <code>gcloud</code> credentials (bypasses client security rules).
+        </p>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

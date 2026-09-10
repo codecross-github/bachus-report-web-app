@@ -1,0 +1,25 @@
+{
+  "name": "bacchus-session-report",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c teal,cyan \"node server/index.js\" \"vite --host\"",
+    "dev:api": "node server/index.js",
+    "dev:web": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "file-saver": "^2.0.5",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "concurrently": "^9.1.2",
+    "vite": "^6.2.5"
+  }
+}
