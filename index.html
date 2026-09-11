@@ -39,6 +39,19 @@
           ></textarea>
         </label>
 
+        <label class="field field-password" for="access-password">
+          <span class="field-label">Access password</span>
+          <span class="field-hint">Required when you tap Fetch readings.</span>
+          <input
+            id="access-password"
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            spellcheck="false"
+          />
+        </label>
+
         <div class="actions">
           <button type="button" id="btn-fetch" class="btn btn-primary">
             Fetch readings
@@ -83,8 +96,7 @@
       <footer class="footer">
         <p>
           Queries <code>sensorReadings</code> where
-          <code>sessionId</code> matches, via a local API using your
-          <code>gcloud</code> credentials (bypasses client security rules).
+          <code>sessionId</code> matches. Access is gated by a shared password.
         </p>
       </footer>
     </div>

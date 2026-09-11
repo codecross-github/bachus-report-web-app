@@ -1,0 +1,13 @@
+.git
+.github
+.cursor
+dist
+node_modules
+src
+index.html
+public
+.env
+.env.*
+*.md
+.DS_Store
+vite.config.js

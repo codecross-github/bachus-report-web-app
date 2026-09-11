@@ -7,13 +7,20 @@ import "./styles.css";
 /** @type {Array<Record<string, unknown>>} */
 let lastReadings = [];
 
+const PASSWORD_STORAGE_KEY = "bacchus-report-password";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
 const sessionInput = document.getElementById("session-ids");
+const passwordInput = document.getElementById("access-password");
 const fetchBtn = document.getElementById("btn-fetch");
 const pdfBtn = document.getElementById("btn-pdf");
 const statusEl = document.getElementById("status");
 const previewEl = document.getElementById("preview");
 const previewSummary = document.getElementById("preview-summary");
 const resultsBody = document.querySelector("#results-table tbody");
+
+const savedPassword = sessionStorage.getItem(PASSWORD_STORAGE_KEY);
+if (savedPassword) passwordInput.value = savedPassword;
 
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
@@ -59,10 +66,13 @@ function sweatValue(row) {
   return row.sweat ?? row.Sweat;
 }
 
-async function fetchReadings(sessionIds) {
-  const res = await fetch("/api/readings", {
+async function fetchReadings(sessionIds, password) {
+  const res = await fetch(`${API_BASE}/api/readings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Report-Password": password,
+    },
     body: JSON.stringify({ sessionIds }),
   });
 
@@ -232,9 +242,16 @@ async function downloadPdfsBySession(readings, sessionIds) {
 
 async function onFetch() {
   const sessionIds = parseSessionIds(sessionInput.value);
+  const password = passwordInput.value.trim();
 
   if (!sessionIds.length) {
     setStatus("Enter at least one session ID.", "error");
+    return;
+  }
+
+  if (!password) {
+    setStatus("Enter the access password to fetch readings.", "error");
+    passwordInput.focus();
     return;
   }
 
@@ -248,7 +265,8 @@ async function onFetch() {
   );
 
   try {
-    const readings = await fetchReadings(sessionIds);
+    const readings = await fetchReadings(sessionIds, password);
+    sessionStorage.setItem(PASSWORD_STORAGE_KEY, password);
     lastReadings = readings;
     renderPreview(readings, sessionIds);
 
@@ -309,6 +327,13 @@ pdfBtn.addEventListener("click", onDownloadPdf);
 
 sessionInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    onFetch();
+  }
+});
+
+passwordInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
     event.preventDefault();
     onFetch();
   }

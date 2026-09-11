@@ -1,15 +1,64 @@
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 import { execFile } from "node:child_process";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
+
+try {
+  process.loadEnvFile(resolve(process.cwd(), ".env"));
+} catch {
+  // .env is optional; REPORT_ACCESS_PASSWORD can also come from the environment
+}
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ID = "bacchus-mobile-app";
 const COLLECTION = "sensorReadings";
 const IN_QUERY_LIMIT = 30;
-const PORT = 5174;
+const PORT = Number(process.env.PORT) || 5174;
+const ACCESS_PASSWORD = process.env.REPORT_ACCESS_PASSWORD || "";
+const ALLOWED_ORIGINS = new Set(
+  (process.env.CORS_ORIGIN || "https://codecross-github.github.io")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
+
+function passwordsMatch(provided, expected) {
+  const expectedBuf = Buffer.from(String(expected), "utf8");
+  const providedBuf = Buffer.from(String(provided ?? ""), "utf8");
+  if (!expectedBuf.length || providedBuf.length !== expectedBuf.length) {
+    return false;
+  }
+  return timingSafeEqual(providedBuf, expectedBuf);
+}
 
 /** @type {{ token: string, expiresAt: number } | null} */
 let cachedToken = null;
+
+async function getMetadataAccessToken() {
+  const res = await fetch(
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+    {
+      headers: { "Metadata-Flavor": "Google" },
+      signal: AbortSignal.timeout(1500),
+    }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.access_token) return null;
+  const expiresInMs = Number(data.expires_in || 3600) * 1000;
+  return {
+    token: data.access_token,
+    expiresAt: Date.now() + Math.max(expiresInMs - 60_000, 60_000),
+  };
+}
+
+async function getGcloudAccessToken() {
+  const { stdout } = await execFileAsync("gcloud", ["auth", "print-access-token"]);
+  const token = stdout.trim();
+  if (!token) throw new Error("Empty access token from gcloud");
+  return { token, expiresAt: Date.now() + 50 * 60 * 1000 };
+}
 
 async function getAccessToken() {
   const now = Date.now();
@@ -18,15 +67,18 @@ async function getAccessToken() {
   }
 
   try {
-    const { stdout } = await execFileAsync("gcloud", [
-      "auth",
-      "print-access-token",
-    ]);
-    const token = stdout.trim();
-    if (!token) throw new Error("Empty access token from gcloud");
-    // Access tokens typically last ~1 hour
-    cachedToken = { token, expiresAt: now + 50 * 60 * 1000 };
-    return token;
+    const fromMetadata = await getMetadataAccessToken();
+    if (fromMetadata) {
+      cachedToken = fromMetadata;
+      return cachedToken.token;
+    }
+  } catch {
+    // Not running on GCP; fall back to local gcloud.
+  }
+
+  try {
+    cachedToken = await getGcloudAccessToken();
+    return cachedToken.token;
   } catch (err) {
     throw new Error(
       `Could not get Google access token. Run: gcloud auth login\n${err.message}`
@@ -136,12 +188,45 @@ async function fetchReadings(sessionIds) {
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
+app.use((req, res, next) => {
+  const origin = req.get("origin");
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, X-Report-Password"
+    );
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  }
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, projectId: PROJECT_ID });
 });
 
 app.post("/api/readings", async (req, res) => {
   try {
+    if (!ACCESS_PASSWORD) {
+      res.status(503).json({
+        error:
+          "Access password is not configured. Set REPORT_ACCESS_PASSWORD in .env.",
+      });
+      return;
+    }
+
+    const providedPassword =
+      req.get("x-report-password") ?? req.body?.password ?? "";
+    if (!passwordsMatch(providedPassword, ACCESS_PASSWORD)) {
+      res.status(401).json({ error: "Invalid access password." });
+      return;
+    }
+
     const raw = req.body?.sessionIds;
     const sessionIds = Array.isArray(raw)
       ? [...new Set(raw.map((id) => String(id).trim()).filter(Boolean))]
@@ -164,6 +249,11 @@ app.post("/api/readings", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Bacchus API listening on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Bacchus API listening on port ${PORT}`);
+  if (!ACCESS_PASSWORD) {
+    console.warn(
+      "REPORT_ACCESS_PASSWORD is not set. Fetch readings will return 503."
+    );
+  }
 });

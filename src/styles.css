@@ -123,10 +123,9 @@ body {
   font-size: 0.85rem;
 }
 
-textarea {
+textarea,
+input[type="password"] {
   width: 100%;
-  resize: vertical;
-  min-height: 6.5rem;
   margin-top: 0.35rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
@@ -139,11 +138,26 @@ textarea {
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-textarea:focus {
+textarea {
+  resize: vertical;
+  min-height: 6.5rem;
+}
+
+input[type="password"] {
+  min-height: 2.85rem;
+  letter-spacing: 0.12em;
+}
+
+textarea:focus,
+input[type="password"]:focus {
   outline: none;
   border-color: var(--accent);
   background: #fff;
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field-password {
+  margin-top: 1.15rem;
 }
 
 .actions {
@@ -162,12 +176,12 @@ textarea:focus {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease,
-    opacity 0.15s ease;
+  transition: transform 0.12s cubic-bezier(0.23, 1, 0.32, 1),
+    background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .btn:disabled {
